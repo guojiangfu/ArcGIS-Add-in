@@ -64,15 +64,17 @@ namespace ArcMapAddin1
 
             return xjLayer;
         }
-        //public void LoadRaster()
-        //{
-        //    string filePath;
-        //    filePath = textBox1.Text + "\\" + listBox2.SelectedItem.ToString();
-        //    IRasterLayer pRasterLy = new RasterLayerClass();
-        //    pRasterLy.CreateFromFilePath(filePath);
-        //    axMapControl.Map.AddLayer(pRasterLy);
-        //    MessageBox.Show("图层加载成功!");
-        //}
+        //加载栅格到地图控件中
+        public void LoadRaster(List<string> filePath)
+        {
+            pMxd = ArcMap.Document as IMxDocument;
+            pMap = pMxd.FocusMap;
+            IRasterLayer pRasterLy = new RasterLayerClass();
+            pRasterLy.CreateFromFilePath(filePath[2]);
+            pMap.AddLayer(pRasterLy);
+            MessageBox.Show("图层加载成功!");
+        }
+        //打开shp文件
         public IFeatureLayer OpenShapeFile(List<string> pathList)
         {
             IWorkspaceFactory pWorkspaceFactory = new ShapefileWorkspaceFactory();
@@ -85,90 +87,114 @@ namespace ArcMapAddin1
             pFLayer.Name = pFC.AliasName;
             return pFLayer;
         }
+       // 获取文件的文件路径和文件名
         public List<string> GetFilePath()
         {
             List<string> pathList = new List<string>();
             OpenFileDialog openFileDialog1 = new OpenFileDialog();
             openFileDialog1.Title = "打开*.shp文件";
-            openFileDialog1.Filter = "shp文件(*.shp*)|*.shp*";
-            openFileDialog1.InitialDirectory = @"E:\GIS底层实验\GIS_Develop\Data\Shapefile";
+            //openFileDialog1.Filter = "shp文件(*.shp*)|*.shp*";
+            openFileDialog1.InitialDirectory = @"E:\GIS底层实验\WorkSpace";
             if (openFileDialog1.ShowDialog() != DialogResult.OK)
             {
                 return null;
             }
-            string filePath = openFileDialog1.FileName;
-            string fileFolder = System.IO.Path.GetDirectoryName(filePath);
-            string fileName = System.IO.Path.GetFileName(filePath);
+            string filePath = openFileDialog1.FileName;//绝对路径
+            string fileFolder = System.IO.Path.GetDirectoryName(filePath);//shp文件所在的文件夹
+            string fileName = System.IO.Path.GetFileName(filePath);//shp文件名
             pathList.Add(fileFolder);
             pathList.Add(fileName);
+            pathList.Add(filePath);
             return pathList;
         }
+        public List<string> SaveAsPath()
+        {
+            List<string> pathList = new List<string>();
+            OpenFileDialog openFileDialog1 = new OpenFileDialog();
+            openFileDialog1.Title = "选择文件存储位置";
+            openFileDialog1.InitialDirectory = @"E:\GIS底层实验\WorkSpace";
+            if (openFileDialog1.ShowDialog() != DialogResult.OK)
+            {
+                return null;
+            }
+            string filePath = openFileDialog1.FileName;//绝对路径
+            string fileFolder = System.IO.Path.GetDirectoryName(filePath);//shp文件所在的文件夹
+            string fileName = System.IO.Path.GetFileName(filePath);//shp文件名
+            pathList.Add(fileFolder);
+            pathList.Add(fileName);
+            pathList.Add(filePath);
+            return pathList;
+        }
+        //获取featureClass
+        public static IFeatureClass GetFeatureClass(string filePath)
+        {
+            IWorkspaceFactory pWorkspaceFactory = new ShapefileWorkspaceFactory();
+            IWorkspaceFactoryLockControl pWorkspaceFactoryLockControl = pWorkspaceFactory as IWorkspaceFactoryLockControl;
+            if (pWorkspaceFactoryLockControl.SchemaLockingEnabled)
+            {
+                pWorkspaceFactoryLockControl.DisableSchemaLocking();
+            }
+            IWorkspace pWorkspace = pWorkspaceFactory.OpenFromFile(System.IO.Path.GetDirectoryName(filePath), 0);
+            IFeatureWorkspace pFeatureWorkspace = pWorkspace as IFeatureWorkspace;
+            IFeatureClass pFeatureClass = pFeatureWorkspace.OpenFeatureClass(System.IO.Path.GetFileName(filePath));
+            return pFeatureClass;
+        }
+
+        //获取字段名
+        public /*List<string>*/void  GetFieldsName(IFeatureClass pFeatureClass)
+        {
+            IFields pFields = pFeatureClass.Fields;
+            int fieldsCount = pFields.FieldCount;
+            for (int i = 0; i < fieldsCount; i++)
+            {
+                comboBox1.Items.Add(pFields.get_Field(i).Name);
+            }
+        }
+
         private void button1_Click(object sender, EventArgs e)
         {
-            //OpenFileDialog openFileDialog1 = new OpenFileDialog();
-            //openFileDialog1.Title = "打开*.shp文件";
-            //openFileDialog1.Filter = "shp文件(*.shp*)|*.shp*";
-            //openFileDialog1.InitialDirectory = @"E:\GIS底层实验\GIS_Develop\Data\Shapefile";
-            //if (openFileDialog1.ShowDialog() == DialogResult.OK)
-            //{
-            //    string filesName = System.IO.Path.GetFileName(openFileDialog1.FileName);//得到文件名不包括路径
-            //    string pathName = System.IO.Path.GetDirectoryName(openFileDialog1.FileName);//得到路径
-            //    string shpPath = pathName + "\\" + filesName;
-            //    IWorkspaceFactory pWorkspaceFactory = new ShapefileWorkspaceFactory();
-            //    IWorkspace pWorkspace = pWorkspaceFactory.OpenFromFile(shpPath, 0);
-            //    IFeatureWorkspace pFeatureWorkspace = pWorkspace as IFeatureWorkspace;
-            //    IFeatureClass pFC = pFeatureWorkspace.OpenFeatureClass(filesName);
-            //    IFeatureLayer pFLayer = new FeatureLayerClass();
-            //    pFLayer.FeatureClass = pFC;
-            //    pFLayer.Name = pFC.AliasName;
-            //    ILayer pLayer = pFLayer as ILayer;
-            //    IMxDocument pMxDocument = ArcMap.Application.Document as IMxDocument;
-            //    pMxDocument.AddLayer(pLayer);
             pMxd = ArcMap.Document as IMxDocument;
             pMap = pMxd.FocusMap;
-
-            //OpenFileDialog openFileDialog1 = new OpenFileDialog();
-            //openFileDialog1.Title = "打开*.shp文件";
-            //openFileDialog1.Filter = "shp文件(*.shp*)|*.shp*";
-            //openFileDialog1.InitialDirectory = @"E:\GIS底层实验\GIS_Develop\Data\Shapefile";
-            //if (openFileDialog1.ShowDialog() != DialogResult.OK)
-            //{
-            //    return;
-            //}
-            //string pPath = openFileDialog1.FileName;
-            //string pFolder = System.IO.Path.GetDirectoryName(pPath);
-            //string pFileName = System.IO.Path.GetFileName(pPath);
-            //IWorkspaceFactory pWorkspaceFactory = new ShapefileWorkspaceFactory();
-            //IWorkspace pWorkspace = pWorkspaceFactory.OpenFromFile(pFolder, 0);
-            //IFeatureWorkspace pFeatureWorkspace = pWorkspace as IFeatureWorkspace;
-            //pFeatureWorkspace.OpenFeatureClass(pFileName);
-            //IFeatureLayer pFLayer = new FeatureLayerClass();
-            //IFeatureClass pFC = pFeatureWorkspace.OpenFeatureClass(pFileName);
-            //pFLayer.FeatureClass = pFC;
-            //pFLayer.Name = pFC.AliasName;
-            //ILayer pLayer = pFLayer as ILayer;
-            //pMap.AddLayer(pLayer);
-            //textBox1.Text = pFileName;
             List<string> filePathList = GetFilePath();
             IFeatureLayer featureLayer = OpenShapeFile(filePathList);
             pMap.AddLayer(featureLayer);
-            textBox1.Text = filePathList[1];
+            textBox1.Text = filePathList[2];
+            GetFieldsName(featureLayer.FeatureClass);
         }
 
         private void button2_Click(object sender, EventArgs e)
         {
-            //ScriptEngine pyEngine = Python.CreateEngine();//创建Python解释器对象
-            //dynamic py = pyEngine.ExecuteFile(@"P2R.py");//读取脚本文件
-            //string Raster = py.ToDo(textBox1.Text,comboBox1.SelectedValue.ToString(),textBox2.Text,);//调用脚本文件中对应的函数
-            string filePath = @"E:/GIS底层实验/WorkSpace/output";
-            List<string> filePathList = GetFilePath();
-            IFeatureLayer featureLayer = OpenShapeFile(filePathList);
-            ILayer rasterLayer = xjShpPointToRaster(featureLayer, filePath, Convert.ToDouble(textBox2.Text), comboBox1.SelectedText);
+            string rasterSavePath = @"E:\GIS底层实验\WorkSpace\MyAddIn\result";
+            string filePath = textBox1.Text;
+            string fileFolder = System.IO.Path.GetDirectoryName(filePath);//shp文件所在的文件夹
+            string fileName = System.IO.Path.GetFileName(filePath);//shp文件名
+            IWorkspaceFactory pWorkspaceFactory = new ShapefileWorkspaceFactory();
+            IWorkspace pWorkspace = pWorkspaceFactory.OpenFromFile(fileFolder, 0);
+            IFeatureWorkspace pFeatureWorkspace = pWorkspace as IFeatureWorkspace;
+            pFeatureWorkspace.OpenFeatureClass(fileName);
+            IFeatureLayer pFLayer = new FeatureLayerClass();
+            IFeatureClass pFC = pFeatureWorkspace.OpenFeatureClass(fileName);
+            pFLayer.FeatureClass = pFC;
+            pFLayer.Name = pFC.AliasName;
+            IFeatureLayer featureLayer = pFLayer;
+            ILayer rasterLayer = xjShpPointToRaster(featureLayer, rasterSavePath, Convert.ToDouble(textBox2.Text), comboBox1.SelectedText);
+            MessageBox.Show("Successful!");
         }
 
         private void textBox1_TextChanged(object sender, EventArgs e)
         {
             textBox1.ReadOnly = true;
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            List<string> savePath = SaveAsPath();
+            textBox4.Text = savePath[0];
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+
         }
     }
 }

@@ -208,6 +208,7 @@
             this.button3.TabIndex = 16;
             this.button3.Text = "浏览";
             this.button3.UseVisualStyleBackColor = true;
+            this.button3.Click += new System.EventHandler(this.button3_Click);
             // 
             // button4
             // 
@@ -218,6 +219,7 @@
             this.button4.TabIndex = 17;
             this.button4.Text = "确定";
             this.button4.UseVisualStyleBackColor = true;
+            this.button4.Click += new System.EventHandler(this.button4_Click);
             // 
             // Form1
             // 
