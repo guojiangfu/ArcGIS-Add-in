@@ -17,6 +17,8 @@ namespace ArcMapAddin1
             //  TODO: Sample code showing how to access button host
             //
             ArcMap.Application.CurrentTool = null;
+            Form1 myForm = new Form1();
+            myForm.Show();
         }
         protected override void OnUpdate()
         {
