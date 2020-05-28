@@ -101,7 +101,7 @@ namespace ArcMapAddin1
                 return null;
             }
             string filePath = openFileDialog1.FileName;//绝对路径
-            string fileFolder = System.IO.Path.GetDirectoryName(filePath);//shp文件所在的文件夹
+            string fileFolder = Path.GetDirectoryName(filePath);//shp文件所在的文件夹
             string fileName = System.IO.Path.GetFileName(filePath);//shp文件名
             pathList.Add(fileFolder);
             pathList.Add(fileName);
@@ -151,23 +151,6 @@ namespace ArcMapAddin1
                 comboBox1.Items.Add(pFields.get_Field(i).Name);
             }
         }
-        //获取宽高中的最小值
-        //public double GetMinWH(string filePath)
-        //{
-        //    try
-        //    {
-        //        ScriptEngine pyEngine = Python.CreateEngine();//创建Python解释器对象
-        //        dynamic myPython = pyEngine.ExecuteFile(@"GetMinWH.py");//读取脚本文件
-        //        double MinWH = myPython.GetMinWH();//调用脚本文件中对应的函数
-        //        MessageBox.Show(Convert.ToString(MinWH));
-        //        return MinWH;
-        //    }
-        //    catch (SystemException ex)
-        //    {
-        //        MessageBox.Show(ex.Message, "Error");
-        //        return 0;
-        //    }
-        //}
 
         //获取宽高中的最小值
         public double GetMinWH(string shpfilepath)
@@ -194,6 +177,144 @@ namespace ArcMapAddin1
             return WH.Min();
         }
 
+        //分析的主要实现函数
+        private IRasterLayer Analyze(IRasterLayer pRasterLayer)
+        {
+            IRaster pRaster = pRasterLayer.Raster;
+            IRasterProps rasterProps = (IRasterProps)pRaster;
+
+            //设置栅格数据起始点  
+            IPnt pBlockSize = new Pnt();
+            pBlockSize.SetCoords(rasterProps.Width, rasterProps.Height);
+
+            //选取整个范围  
+            IPixelBlock pPixelBlock = pRaster.CreatePixelBlock(pBlockSize);
+
+            //左上点坐标  
+            IPnt tlp = new Pnt();
+            tlp.SetCoords(0, 0);
+
+            //读入栅格  
+            IRasterBandCollection pRasterBands = pRaster as IRasterBandCollection;
+            IRasterBand pRasterBand = pRasterBands.Item(0);
+            IRawPixels pRawRixels = pRasterBands.Item(0) as IRawPixels;
+            pRawRixels.Read(tlp, pPixelBlock);
+
+            //将PixBlock的值组成数组  
+            Array pSafeArray = pPixelBlock.get_SafeArray(0) as Array;
+
+            //Array转数组
+            double[,] myDoubleArr = new double[pSafeArray.GetLength(0), pSafeArray.GetLength(1)];
+            for (int i = 0; i < myDoubleArr.GetLength(0); i++)
+            {
+                for (int j = 0; j < myDoubleArr.GetLength(1); j++)
+                {
+                    myDoubleArr[i, j] = Convert.ToDouble( pSafeArray.GetValue(i, j));
+                }
+            }
+
+            for (int i = 0; i < myDoubleArr.GetLength(0); i++)
+            {
+                for (int j = 0; j < myDoubleArr.GetLength(1); j++)
+                {
+                    if (myDoubleArr[i,j] == 255)
+                    {
+                        myDoubleArr[i, j] = 0;
+                    }
+                }
+            }
+            double[,] ZeroArray = GetArray(myDoubleArr, Convert.ToInt32(textBox4.Text));
+            double[,] OArray = SumArray(ZeroArray, Convert.ToInt32(textBox4.Text));
+            double[,] LastArray =  ReturnLastArray(OArray, Convert.ToInt32(textBox4.Text));
+            pPixelBlock.set_SafeArray(0, LastArray);
+
+            //StreamWriter sw = File.AppendText(@"E:\GIS底层实验\WorkSpace\result\arrry.txt");
+            //for (int y = 0; y < rasterProps.Height; y++)
+            //{
+            //    for (int x = 0; x < rasterProps.Width; x++)
+            //    {
+            //        //int value = Convert.ToInt32(pSafeArray.GetValue(x, y));  
+            //        Byte value = Convert.ToByte(pSafeArray.GetValue(x, y));
+            //        string TxtCon = ("X:" + Convert.ToString(x) + "," + "Y:" + Convert.ToString(y) + "," + "Value" + pSafeArray.GetValue(x, y) + "\n");
+            //        sw.Write(TxtCon);
+            //    }
+            //}
+            //sw.Flush();
+            //sw.Close();
+
+            // 编辑raster，将更新的值写入raster中
+            IRasterEdit rasterEdit = pRaster as IRasterEdit;
+            rasterEdit.Write(tlp, pPixelBlock);
+            rasterEdit.Refresh();
+            return pRasterLayer;
+        }
+        //二维数组补网(补零)
+        public double[,] GetArray(double[,] array, int r)
+        {
+            int x = array.GetLength(0);
+            int y = array.GetLength(1);
+            double[,] myArray = new double[x + 2 * r, y + 2 * r];
+            for (int i = 0; i < x; i++)
+            {
+                for (int j = 0; j < y; j++)
+                {
+                    myArray[i + r, j + r] = Convert.ToDouble(array.GetValue(i, j));
+                }
+            }
+            return myArray;
+        }
+
+        //累加生成新数组
+        public double[,] SumArray(double[,] array, int a)
+        {
+            double[,] MyArray = new double[array.GetLength(0), array.GetLength(1)];
+            for (int i = a; i < array.GetLength(0) - a; i++)
+            {
+                for (int j = a; j < array.GetLength(1) - a; j++)
+                {
+                    double[] b = new double[array.GetLength(0)];
+                    for (int s = 0; s < 2 * a + 1; s++)
+                    {
+                        for (int s1 = 0; s1 < 2 * a + 1; s1++)
+                        {
+                            b[s] = b[s] + array[i - a + s, j - a + s1];
+                        }
+
+                    }
+                    for (int s2 = 0; s2 < 2 * a + 1; s2++)
+                    {
+                        MyArray[i, j] += b[s2];
+                    }
+                }
+            }
+            return MyArray;
+        }
+        //还原会原来数组的大小
+        public double[,] ReturnLastArray(double[,] OArray, int r)
+        {
+            int x = OArray.GetLength(0);
+            int y = OArray.GetLength(1);
+            double[,] LArray = new double[x - 2 * r, y - 2 * r];
+            for (int i = r; i < x - r; i++)
+            {
+                for (int j = r; j < y - r; j++)
+                {
+                    LArray[i - r, j - r] = OArray[i, j];
+                }
+            }
+            return LArray;
+        }
+        //保存分析结果
+        public static void SaveRasterLayerTofile(IRasterLayer pRasterLayer, string fileName, string strFileExtension = "TIFF")
+        {
+
+            IRaster pRaster = pRasterLayer.Raster;
+            IRaster2 pRaster2 = pRaster as IRaster2;
+
+            ISaveAs pSaveAs = pRaster2 as ISaveAs;
+            pSaveAs.SaveAs(fileName, null, strFileExtension);
+        }
+
         private void button1_Click(object sender, EventArgs e)
         {
             pMxd = ArcMap.Document as IMxDocument;
@@ -204,7 +325,8 @@ namespace ArcMapAddin1
             textBox1.Text = filePathList[2];
             GetFieldsName(featureLayer.FeatureClass);
             comboBox1.SelectedIndex = 0;
-            textBox2.Text = Convert.ToString(GetMinWH(textBox1.Text)/250);
+            // textBox2.Text = Convert.ToString( Math.Round( GetMinWH(textBox1.Text) / 250,3 ) );
+            textBox2.Text = Convert.ToString(GetMinWH(textBox1.Text) / 250);
             textBox3.Text = Convert.ToString(GetMinWH(textBox1.Text) / 250);
             textBox4.Text = Convert.ToString(GetMinWH(textBox1.Text) / 30);
         }
@@ -240,6 +362,13 @@ namespace ArcMapAddin1
         }
 
         private void button4_Click(object sender, EventArgs e)
+        {
+            IRasterLayer pRasterLy = new RasterLayerClass();
+            pRasterLy.CreateFromFilePath(@"E:\GIS底层实验\WorkSpace\MyAddIn\result.tif");
+            Analyze(pRasterLy);
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
         {
 
         }
